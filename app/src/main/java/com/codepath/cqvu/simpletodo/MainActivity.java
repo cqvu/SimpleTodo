@@ -1,9 +1,11 @@
 package com.codepath.cqvu.simpletodo;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -21,6 +23,9 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    public static final String KEY_ITEM_TEXT = "item_text";
+    public static final String KEY_ITEM_POSITION = "item_position";
+    public static final int EDIT_TEXT_CODE = 20;
     List<String> items;
 
     Button btnAdd;
@@ -34,10 +39,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         btnAdd = findViewById(R.id.btnAdd);
-        etItem = findViewById(R.id.etItem);
+        etItem = findViewById(R.id.editItem);
         rvItems = findViewById(R.id.rvItems);
-
-        etItem.setText("I'm doing this from java");
 
         loadItems();
 
@@ -49,11 +52,25 @@ public class MainActivity extends AppCompatActivity {
                 items.remove(position);
                 // Notify the adapter
                 itemsAdapter.notifyItemRemoved(position);
-                Toast.makeText(getApplicationContext(), "Item was removed", Toast.LENGTH_SHORT);
+                Toast.makeText(getApplicationContext(), "Item was removed", Toast.LENGTH_SHORT).show();
                 saveItems();
             }
         };
-        itemsAdapter = new ItemsAdapter(items, onLongClickListener);
+        ItemsAdapter.OnClickListener onClickListener = new ItemsAdapter.OnClickListener() {
+            @Override
+            public void OnItemClicked(int position) {
+                // Create the new activity
+                Intent i = new Intent(MainActivity.this, EditActivity.class);
+
+                // Pass the data being edited
+                i.putExtra(KEY_ITEM_TEXT, items.get(position));
+                i.putExtra(KEY_ITEM_POSITION, position);
+
+                // Display the activity
+                startActivityForResult(i, EDIT_TEXT_CODE);
+            }
+        };
+        itemsAdapter = new ItemsAdapter(items, onLongClickListener, onClickListener);
         rvItems.setAdapter(itemsAdapter);
         rvItems.setLayoutManager(new LinearLayoutManager(this));
 
@@ -71,10 +88,34 @@ public class MainActivity extends AppCompatActivity {
                 // Clear text field
                 etItem.setText("");
 
-                Toast.makeText(getApplication(), "Item was added", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), "Item was added", Toast.LENGTH_SHORT).show();
                 saveItems();
             }
         }));
+    }
+
+    //handle result of edit activity
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (resultCode == RESULT_OK && requestCode == EDIT_TEXT_CODE) {
+            // Retrieve updated text value
+            String itemText = data.getStringExtra(KEY_ITEM_TEXT);
+
+            // Extract the original position of edited item from position key
+            int position = data.getExtras().getInt(KEY_ITEM_POSITION);
+
+            // Update model with new item text
+            items.set(position, itemText);
+
+            // Notify the adapter
+            itemsAdapter.notifyItemChanged(position);
+
+            // Persist the changes
+            saveItems();
+
+            Toast.makeText(getApplicationContext(), "Item updated successfully", Toast.LENGTH_SHORT).show();
+        } else {
+            Log.w("MainActivity", "Unknown call to onActivityResult");
+        }
     }
 
     // Get the data file
